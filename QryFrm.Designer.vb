@@ -45,6 +45,11 @@ Partial Class QryFrm
         Me.SQLSyntaxHelpMenuItem = New System.Windows.Forms.ToolStripMenuItem
         Me.KeywordSyntaxHelpMenuItem = New System.Windows.Forms.ToolStripMenuItem
         Me.SearchSchemaHelpMenuItem = New System.Windows.Forms.ToolStripMenuItem
+        Me.ToolStripMenuItem1 = New System.Windows.Forms.ToolStripSeparator
+        Me.WSS30SQLSyntaxHelpMenuItem = New System.Windows.Forms.ToolStripMenuItem
+        Me.WSS30KeywordSyntaxHelpMenuItem = New System.Windows.Forms.ToolStripMenuItem
+        Me.WSS30SearchSchemaHelpMenuItem = New System.Windows.Forms.ToolStripMenuItem
+        Me.ToolStripMenuItem2 = New System.Windows.Forms.ToolStripSeparator
         Me.AboutSharePointSearchServiceToolToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem
         Me.StatusStrip1 = New System.Windows.Forms.StatusStrip
         Me.StatusLbl = New System.Windows.Forms.ToolStripStatusLabel
@@ -270,10 +275,10 @@ Partial Class QryFrm
         '
         'HelpToolStripMenuItem
         '
-        Me.HelpToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.SQLSyntaxHelpMenuItem, Me.KeywordSyntaxHelpMenuItem, Me.SearchSchemaHelpMenuItem, Me.AboutSharePointSearchServiceToolToolStripMenuItem})
+        Me.HelpToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.SQLSyntaxHelpMenuItem, Me.KeywordSyntaxHelpMenuItem, Me.SearchSchemaHelpMenuItem, Me.ToolStripMenuItem1, Me.WSS30SQLSyntaxHelpMenuItem, Me.WSS30KeywordSyntaxHelpMenuItem, Me.WSS30SearchSchemaHelpMenuItem, Me.ToolStripMenuItem2, Me.AboutSharePointSearchServiceToolToolStripMenuItem})
         Me.HelpToolStripMenuItem.Name = "HelpToolStripMenuItem"
         Me.HelpToolStripMenuItem.Size = New System.Drawing.Size(44, 20)
-        Me.HelpToolStripMenuItem.Text = "&Help"
+        Me.HelpToolStripMenuItem.Text = "Help"
         '
         'SQLSyntaxHelpMenuItem
         '
@@ -292,6 +297,34 @@ Partial Class QryFrm
         Me.SearchSchemaHelpMenuItem.Name = "SearchSchemaHelpMenuItem"
         Me.SearchSchemaHelpMenuItem.Size = New System.Drawing.Size(428, 22)
         Me.SearchSchemaHelpMenuItem.Text = "Microsoft.Search Schema Reference for Enterprise Search on MSDN"
+        '
+        'ToolStripMenuItem1
+        '
+        Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
+        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(425, 6)
+        '
+        'WSS30SQLSyntaxHelpMenuItem
+        '
+        Me.WSS30SQLSyntaxHelpMenuItem.Name = "WSS30SQLSyntaxHelpMenuItem"
+        Me.WSS30SQLSyntaxHelpMenuItem.Size = New System.Drawing.Size(428, 22)
+        Me.WSS30SQLSyntaxHelpMenuItem.Text = "WSS 3.0 SQL Syntax Help on MSDN"
+        '
+        'WSS30KeywordSyntaxHelpMenuItem
+        '
+        Me.WSS30KeywordSyntaxHelpMenuItem.Name = "WSS30KeywordSyntaxHelpMenuItem"
+        Me.WSS30KeywordSyntaxHelpMenuItem.Size = New System.Drawing.Size(428, 22)
+        Me.WSS30KeywordSyntaxHelpMenuItem.Text = "WSS 3.0 Keyword Syntax Help on MSDN"
+        '
+        'WSS30SearchSchemaHelpMenuItem
+        '
+        Me.WSS30SearchSchemaHelpMenuItem.Name = "WSS30SearchSchemaHelpMenuItem"
+        Me.WSS30SearchSchemaHelpMenuItem.Size = New System.Drawing.Size(428, 22)
+        Me.WSS30SearchSchemaHelpMenuItem.Text = "Microsoft.Search Schema Reference for WSS 3.0 on MSDN"
+        '
+        'ToolStripMenuItem2
+        '
+        Me.ToolStripMenuItem2.Name = "ToolStripMenuItem2"
+        Me.ToolStripMenuItem2.Size = New System.Drawing.Size(425, 6)
         '
         'AboutSharePointSearchServiceToolToolStripMenuItem
         '
@@ -702,5 +735,10 @@ Partial Class QryFrm
     Friend WithEvents ContainsOpt As System.Windows.Forms.RadioButton
     Friend WithEvents WildChk As System.Windows.Forms.CheckBox
     Friend WithEvents rbKeywordSyntax As System.Windows.Forms.RadioButton
+    Friend WithEvents ToolStripMenuItem1 As System.Windows.Forms.ToolStripSeparator
+    Friend WithEvents WSS30SQLSyntaxHelpMenuItem As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents WSS30KeywordSyntaxHelpMenuItem As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents WSS30SearchSchemaHelpMenuItem As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents ToolStripMenuItem2 As System.Windows.Forms.ToolStripSeparator
 
 End Class

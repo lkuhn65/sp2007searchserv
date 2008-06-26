@@ -14,5 +14,8 @@
     <Setting Name="IgnoreCertErrors" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
+    <Setting Name="SharePointSearchServiceTool_SPSearchWS_QueryService" Type="(Web Service URL)" Scope="Application">
+      <Value Profile="(Default)">http://mswikis/_vti_bin/spsearch.asmx</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

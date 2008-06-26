@@ -7,7 +7,7 @@ Imports System.Configuration
 
 Public Class QryFrm
 
-    Private sws As SearchWS.QueryService = Nothing
+    Private sws As System.Web.Services.Protocols.SoapHttpClientProtocol = Nothing
     Private ds As DataSet = Nothing
     Private Hlp As New Web.HttpUtility
     Private CurQuery As Integer = 0
@@ -16,6 +16,7 @@ Public Class QryFrm
     Private serviceUrl As String
     Private webServiceName As String
     Private appTitle As String
+    Private bMOSSSearch As Boolean
 
 
     Private Sub QryFrm_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
@@ -42,7 +43,11 @@ Public Class QryFrm
         Try
             'need to recreate this each time in case the user has changed servers
             If sws Is Nothing OrElse bServerChanged Then
-                sws = New SearchWS.QueryService
+                If bMOSSSearch Then
+                    sws = New SearchWS.QueryService
+                Else
+                    sws = New SPSearchWS.QueryService
+                End If
                 sws.Url = IIf(serviceUrl.EndsWith("/"), serviceUrl, serviceUrl & "/") & webServiceName
                 sws.Credentials = System.Net.CredentialCache.DefaultCredentials
 
@@ -82,11 +87,15 @@ Public Class QryFrm
             'init the web service
             If Not InitWS() Then Exit Sub
 
-            'get the scope info
+            'get the service status
             Try
                 ' first try is with the windows identity
-                Ret = sws.GetPortalSearchInfo()
-                Me.Text = appTitle & " [" & sws.Url & "]"
+                If bMOSSSearch Then
+                    Ret = CType(sws, SearchWS.QueryService).Status()
+                Else
+                    Ret = CType(sws, SPSearchWS.QueryService).Status()
+                End If
+                Me.Text = appTitle & " [" & sws.Url & "]" & Ret
             Catch UnAuthorized As System.Net.WebException
                 If UnAuthorized.Message.Contains("401") Then
                     ' if we get unauthorized, try again after getting login info from the user.
@@ -103,8 +112,12 @@ Public Class QryFrm
                             ServicePointManager.ServerCertificateValidationCallback = AddressOf ServerCertificateValidationCallback
                         End If
                     End If
-                    Ret = sws.GetPortalSearchInfo()
-                    Me.Text = appTitle & " [" & sws.Url & "]"
+                    If bMOSSSearch Then
+                        Ret = CType(sws, SearchWS.QueryService).Status()
+                    Else
+                        Ret = CType(sws, SPSearchWS.QueryService).Status()
+                    End If
+                    Me.Text = appTitle & " [" & sws.Url & "]" & Ret
                 Else
                     'something else happened, let the user know...
                     Me.Text = appTitle
@@ -112,87 +125,96 @@ Public Class QryFrm
                 End If
             End Try
 
-            If Ret <> "" Then
-                'clear out the old list of scopes
-                ScopeChk.Items.Clear()
+            ' can only load scopes and props for MOSS Search service
+            If bMOSSSearch Then
+                'get the scope info
+                Ret = ""
+                Ret = CType(sws, SearchWS.QueryService).GetPortalSearchInfo()
+                If Ret <> "" Then
+                    'clear out the old list of scopes
+                    ScopeChk.Items.Clear()
 
-                'load the xml 
-                xDoc.LoadXml(Ret)
+                    'load the xml 
+                    xDoc.LoadXml(Ret)
 
-                'create a namespace manager for querying
-                xNS = New XmlNamespaceManager(xDoc.NameTable)
-                xNS.AddNamespace("a", "urn:Microsoft.MSSearch.Response.Config")
+                    'create a namespace manager for querying
+                    xNS = New XmlNamespaceManager(xDoc.NameTable)
+                    xNS.AddNamespace("a", "urn:Microsoft.MSSearch.Response.Config")
 
-                'find the scopes
-                xList = xDoc.SelectNodes("/a:SiteConfigInfo/a:Scopes/a:Scope/a:Name", xNS)
+                    'find the scopes
+                    xList = xDoc.SelectNodes("/a:SiteConfigInfo/a:Scopes/a:Scope/a:Name", xNS)
 
-                'make sure we got some matches
-                If Not xList Is Nothing Then
-                    For Each xNode In xList
-                        'add each item to the scope list
-                        ScopeChk.Items.Add(New ScopeItem(xNode.InnerText, xNode.InnerText))
-                    Next
+                    'make sure we got some matches
+                    If Not xList Is Nothing Then
+                        For Each xNode In xList
+                            'add each item to the scope list
+                            ScopeChk.Items.Add(New ScopeItem(xNode.InnerText, xNode.InnerText))
+                        Next
+                    End If
+
+                    'get the application ID
+                    xNode = xDoc.SelectSingleNode("/a:SiteConfigInfo/a:Id", xNS)
+
+                    'grab the results - add Search Applicaiton ID to window title.
+                    If xNode IsNot Nothing Then Me.Text = Me.Text & " SSP ID:" & xNode.InnerText
+
                 End If
 
-                'get the application ID
-                xNode = xDoc.SelectSingleNode("/a:SiteConfigInfo/a:Id", xNS)
+                'get the list of search properties
+                ds = CType(sws, SearchWS.QueryService).GetSearchMetadata()
+                If ds IsNot Nothing AndAlso ds.Tables.Count > 0 Then
+                    'add the columns for criteria
+                    dt = New DataColumn("Criteria", GetType(System.String))
+                    ds.Tables(0).Columns.Add(dt)
 
-                'grab the results - add Search Applicaiton ID to window title.
-                If xNode IsNot Nothing Then Me.Text = Me.Text & " SSP ID:" & xNode.InnerText
+                    dt = New DataColumn("IncludeInResults", GetType(System.Boolean))
+                    ds.Tables(0).Columns.Add(dt)
 
-            End If
+                    dt = New DataColumn("SortBy", GetType(System.String))
+                    ds.Tables(0).Columns.Add(dt)
 
-            'get the list of search properties
-            ds = sws.GetSearchMetadata()
-            If ds IsNot Nothing AndAlso ds.Tables.Count > 0 Then
-                'add the columns for criteria
-                dt = New DataColumn("Criteria", GetType(System.String))
-                ds.Tables(0).Columns.Add(dt)
+                    'bind
+                    propdg.DataSource = ds.Tables(0)
+                    ' The below autogenerated column is removed so 
+                    ' a DataGridViewComboboxColumn could be used instead.
+                    propdg.Columns.Remove("SortBy")
+                    Dim comboboxColumn As DataGridViewComboBoxColumn
+                    comboboxColumn = New DataGridViewComboBoxColumn()
+                    With comboboxColumn
+                        .Name = "SortBy"
+                        .DataPropertyName = .Name
+                        .HeaderText = .Name
+                        .ValueMember = .Name
+                        .DisplayMember = .ValueMember
+                        .Items.Add("")
+                        .Items.Add("Asc")
+                        .Items.Add("Desc")
+                        .SortMode = DataGridViewColumnSortMode.Automatic
+                        .Width = 110
+                        .MaxDropDownItems = 3
+                        .FlatStyle = FlatStyle.Flat
+                    End With
+                    ' Tack this example column onto the end.
+                    propdg.Columns.Add(comboboxColumn)
 
-                dt = New DataColumn("IncludeInResults", GetType(System.Boolean))
-                ds.Tables(0).Columns.Add(dt)
+                    For Each col As DataGridViewColumn In propdg.Columns
+                        If col.Index > 2 Then
+                            col.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
+                        End If
+                    Next
 
-                dt = New DataColumn("SortBy", GetType(System.String))
-                ds.Tables(0).Columns.Add(dt)
+                    ' http://msdn2.microsoft.com/en-us/library/ms497227.aspx
+                    'configure sorting for boolean columns
+                    propdg.Columns("Retrievable").SortMode = DataGridViewColumnSortMode.Automatic
+                    propdg.Columns("FullTextQueriable").SortMode = DataGridViewColumnSortMode.Automatic
+                    propdg.Columns("IncludeInResults").SortMode = DataGridViewColumnSortMode.Automatic
 
-                'bind
-                propdg.DataSource = ds.Tables(0)
-                ' The below autogenerated column is removed so 
-                ' a DataGridViewComboboxColumn could be used instead.
-                propdg.Columns.Remove("SortBy")
-                Dim comboboxColumn As DataGridViewComboBoxColumn
-                comboboxColumn = New DataGridViewComboBoxColumn()
-                With comboboxColumn
-                    .Name = "SortBy"
-                    .DataPropertyName = .Name
-                    .HeaderText = .Name
-                    .ValueMember = .Name
-                    .DisplayMember = .ValueMember
-                    .Items.Add("")
-                    .Items.Add("Asc")
-                    .Items.Add("Desc")
-                    .SortMode = DataGridViewColumnSortMode.Automatic
-                    .Width = 110
-                    .MaxDropDownItems = 3
-                    .FlatStyle = FlatStyle.Flat
-                End With
-                ' Tack this example column onto the end.
-                propdg.Columns.Add(comboboxColumn)
-
-                For Each col As DataGridViewColumn In propdg.Columns
-                    If col.Index > 2 Then
-                        col.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
-                    End If
-                Next
-
-                ' http://msdn2.microsoft.com/en-us/library/ms497227.aspx
-                'configure sorting for boolean columns
-                propdg.Columns("Retrievable").SortMode = DataGridViewColumnSortMode.Automatic
-                propdg.Columns("FullTextQueriable").SortMode = DataGridViewColumnSortMode.Automatic
-                propdg.Columns("IncludeInResults").SortMode = DataGridViewColumnSortMode.Automatic
-
+                Else
+                    MessageBox.Show("No properties were found")
+                End If
             Else
-                MessageBox.Show("No properties were found")
+                ' may want to drop a default query out into the UI at this point
+
             End If
 
         Catch ex As Exception
@@ -239,9 +261,19 @@ Public Class QryFrm
                 ' first try is with the windows identity
                 'execute the query
                 If exMethod Then
-                    ds = sws.QueryEx(Query)
+                    ' WSS and MOSS QueryEx methods use a different SOAPAction, so need to be 
+                    ' specific here...
+                    If bMOSSSearch Then
+                        ds = CType(sws, SearchWS.QueryService).QueryEx(Query)
+                    Else
+                        ds = CType(sws, SPSearchWS.QueryService).QueryEx(Query)
+                    End If
                 Else
-                    Ret = sws.Query(Query)
+                    If bMOSSSearch Then
+                        Ret = CType(sws, SearchWS.QueryService).Query(Query)
+                    Else
+                        Ret = CType(sws, SPSearchWS.QueryService).Query(Query)
+                    End If
                 End If
 
             Catch UnAuthorized As System.Net.WebException
@@ -262,9 +294,19 @@ Public Class QryFrm
                     End If
                     'execute the query again
                     If exMethod Then
-                        ds = sws.QueryEx(Query)
+                        ' WSS and MOSS QueryEx methods use a different SOAPAction, so need to be 
+                        ' specific here...
+                        If bMOSSSearch Then
+                            ds = CType(sws, SearchWS.QueryService).QueryEx(Query)
+                        Else
+                            ds = CType(sws, SPSearchWS.QueryService).QueryEx(Query)
+                        End If
                     Else
-                        Ret = sws.Query(Query)
+                        If bMOSSSearch Then
+                            Ret = CType(sws, SearchWS.QueryService).Query(Query)
+                        Else
+                            Ret = CType(sws, SPSearchWS.QueryService).Query(Query)
+                        End If
                     End If
                 Else
                     'something else happened, let the user know...
@@ -420,7 +462,7 @@ Public Class QryFrm
 
             Try
                 'make sure we've gotten some properties first
-                If propdg.Rows.Count = 0 Then
+                If propdg.Rows.Count = 0 And bMOSSSearch Then
                     MessageBox.Show("You must retrieve the properties first.  Please use File > Connect to SharePoint Search Service... menu.")
                     Exit Sub
                 End If
@@ -559,7 +601,9 @@ Public Class QryFrm
 
                 'create the Xml for the query
                 'write out the results
-                QueryPacket.Text = MakeQueryPacket(False, Sql.ToString & Where.ToString & " " & BuildOrderBy(), "")
+                '6/26/2008 - I don't know why, but to get a SQL query to work with WSS search, must
+                ' tack a " --" onto the end of the query text.  
+                QueryPacket.Text = MakeQueryPacket(False, Sql.ToString & Where.ToString & " " & BuildOrderBy() & IIf(bMOSSSearch, "", " --"), "")
 
             Catch ex As Exception
                 MessageBox.Show("An error occurred creating the Sql: " & ex.Message)
@@ -603,6 +647,10 @@ Public Class QryFrm
                 SortByProps.Add(dg.Cells(0).Value, dg.Cells(propdg.Columns("SortBy").Index).Value)
             End If
         Next
+        If SortByProps.Count = 0 Then
+            ' if the user didn't specify anything, we put in Rank DESC as the default
+            SortByProps.Add("Rank", "Desc")
+        End If
         If SortByProps.Count > 0 Then
             Dim orderByClause As New System.Text.StringBuilder
             Dim counter As Integer = 1
@@ -613,7 +661,7 @@ Public Class QryFrm
                                                     " order=""" & counter.ToString() & """/>")
                 counter += 1
             Next
-            orderByClause.Append("</SortByProperties>")
+            orderByClause.Append("</SortByProperties>" & vbCrLf)
             Return orderByClause.ToString()
         End If
         Return ""
@@ -833,6 +881,7 @@ Public Class QryFrm
 
             serviceUrl = cnctDialog.UrlTxt.Text
             webServiceName = cnctDialog.lblWebService.Text
+            bMOSSSearch = webServiceName.Contains("/search.asmx")
             ConnectToService()
         End If
     End Sub
@@ -844,9 +893,9 @@ Public Class QryFrm
 
     Private Sub SQLSyntaxHelpMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles SQLSyntaxHelpMenuItem.Click
         Try
-            System.Diagnostics.Process.Start("IExplore", "http://msdn2.microsoft.com/en-us/library/ms493660.aspx")
+            System.Diagnostics.Process.Start("IExplore", "http://msdn.microsoft.com/en-us/library/ms493660.aspx")
         Catch
-            MessageBox.Show("The system could not launch the url http://msdn2.microsoft.com/en-us/library/ms493660.aspx using Internet Explorer.", _
+            MessageBox.Show("The system could not launch the url http://msdn.microsoft.com/en-us/library/ms493660.aspx using Internet Explorer.", _
             "An error has occurred", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
 
@@ -854,9 +903,9 @@ Public Class QryFrm
 
     Private Sub KeywordSyntaxHelpMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles KeywordSyntaxHelpMenuItem.Click
         Try
-            System.Diagnostics.Process.Start("IExplore", "http://msdn2.microsoft.com/en-us/library/ms497636.aspx")
+            System.Diagnostics.Process.Start("IExplore", "http://msdn.microsoft.com/en-us/library/ms497636.aspx")
         Catch
-            MessageBox.Show("The system could not launch the url http://msdn2.microsoft.com/en-us/library/ms497636.aspx using Internet Explorer.", _
+            MessageBox.Show("The system could not launch the url http://msdn.microsoft.com/en-us/library/ms497636.aspx using Internet Explorer.", _
             "An error has occurred", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
 
@@ -864,14 +913,43 @@ Public Class QryFrm
 
     Private Sub SearchSchemaHelpMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles SearchSchemaHelpMenuItem.Click
         Try
-            System.Diagnostics.Process.Start("IExplore", "http://msdn2.microsoft.com/en-us/library/ms544835.aspx")
+            System.Diagnostics.Process.Start("IExplore", "http://msdn.microsoft.com/en-us/library/ms544835.aspx")
         Catch
-            MessageBox.Show("The system could not launch the url http://msdn2.microsoft.com/en-us/library/ms544835.aspx using Internet Explorer.", _
+            MessageBox.Show("The system could not launch the url http://msdn.microsoft.com/en-us/library/ms544835.aspx using Internet Explorer.", _
             "An error has occurred", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
 
     End Sub
 
+    Private Sub WSS30SQLSyntaxHelpMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles WSS30SQLSyntaxHelpMenuItem.Click
+        Try
+            System.Diagnostics.Process.Start("IExplore", "http://msdn.microsoft.com/en-us/library/ms443580.aspx")
+        Catch
+            MessageBox.Show("The system could not launch the url http://msdn.microsoft.com/en-us/library/ms443580.aspx using Internet Explorer.", _
+            "An error has occurred", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+    End Sub
+
+    Private Sub WSS30KeywordSyntaxHelpMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles WSS30KeywordSyntaxHelpMenuItem.Click
+        Try
+            System.Diagnostics.Process.Start("IExplore", "http://msdn.microsoft.com/en-us/library/ms467796.aspx")
+        Catch
+            MessageBox.Show("The system could not launch the url http://msdn.microsoft.com/en-us/library/ms467796.aspx using Internet Explorer.", _
+            "An error has occurred", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+    End Sub
+
+    Private Sub WSS30SearchSchemaHelpMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles WSS30SearchSchemaHelpMenuItem.Click
+        Try
+            System.Diagnostics.Process.Start("IExplore", "http://msdn.microsoft.com/en-us/library/ms413625.aspx")
+        Catch
+            MessageBox.Show("The system could not launch the url http://msdn.microsoft.com/en-us/library/ms413625.aspx using Internet Explorer.", _
+            "An error has occurred", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+    End Sub
 
     Private Sub rbSQLSyntax_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles rbSQLSyntax.CheckedChanged
         If rbSQLSyntax.Checked Then
@@ -880,6 +958,4 @@ Public Class QryFrm
             pnlSQLOptions.Enabled = False
         End If
     End Sub
-
-  
 End Class

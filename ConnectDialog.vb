@@ -22,7 +22,7 @@ Public Class ConnectDialog
     End Sub
 
     Private Sub rbWSS_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles rbWSS.CheckedChanged
-        lblWebService.Text = "_vti_bin/spssearch.asmx"
+        lblWebService.Text = "_vti_bin/spsearch.asmx"
     End Sub
 
     Private Sub rbMOSS_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles rbMOSS.CheckedChanged

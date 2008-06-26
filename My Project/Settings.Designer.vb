@@ -99,6 +99,16 @@ Namespace My
                 Me("IgnoreCertErrors") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.ApplicationScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.SpecialSettingAttribute(Global.System.Configuration.SpecialSetting.WebServiceUrl),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("http://mswikis/_vti_bin/spsearch.asmx")>  _
+        Public ReadOnly Property SharePointSearchServiceTool_SPSearchWS_QueryService() As String
+            Get
+                Return CType(Me("SharePointSearchServiceTool_SPSearchWS_QueryService"),String)
+            End Get
+        End Property
     End Class
 End Namespace
 
